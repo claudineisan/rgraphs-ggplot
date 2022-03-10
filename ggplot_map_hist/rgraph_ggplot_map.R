@@ -17,11 +17,11 @@ library(tidyverse)
 
 ###
 #' input data
-lim_mu <- shapefile("data/mu_novacrixas_250_2013_ibge.shp")
+lim_mu <- shapefile("data/shape/mu_novacrixas_250_2013_ibge/mu_novacrixas_250_2013_ibge.shp")
 lim_mu_fty <- fortify(lim_mu)
 
-img_mu_10 <- raster("data/mu_novacrixas_pasture_quality_2010_lapig.tif")
-img_mu_18 <- raster("data/mu_novacrixas_pasture_quality_2018_lapig.tif")
+img_mu_10 <- raster("data/raster/mu_novacrixas_pasture_quality_2010_lapig.tif")
+img_mu_18 <- raster("data/raster/mu_novacrixas_pasture_quality_2018_lapig.tif")
 img_mu_10_18 <- stack(img_mu_10, img_mu_18)
 
 ###
@@ -37,6 +37,25 @@ gath_df_img_mu <- df_img_mu %>%
 gath_df_img_mu$values <- as.character(gath_df_img_mu$values)
 gath_df_img_mu$values <- str_replace(gath_df_img_mu$values, '3', '2')
 gath_df_img_mu$values <- str_replace(gath_df_img_mu$values, '4', '3')
+
+
+tbl_df_img_mu <- gath_df_img_mu %>%
+  select(variables, values) %>% 
+  group_by(variables) %>% 
+  summarise(leng = table(values)) %>% 
+  mutate(perc = NA,
+         classes = c('Severe', 'Intermediate', 'Absent')
+         )
+
+tbl_df_img_mu[tbl_df_img_mu$variables %in% 'Year 2010', ]$perc <- 
+  round((tbl_df_img_mu[tbl_df_img_mu$variables %in% 'Year 2010', ]$leng /  
+  sum(tbl_df_img_mu[tbl_df_img_mu$variables %in% 'Year 2010', ]$leng))*100,0)
+
+tbl_df_img_mu[tbl_df_img_mu$variables %in% 'Year 2018', ]$perc <- 
+  round((tbl_df_img_mu[tbl_df_img_mu$variables %in% 'Year 2018', ]$leng /  
+           sum(tbl_df_img_mu[tbl_df_img_mu$variables %in% 'Year 2018', ]$leng))*100,0)
+
+
 
 data =  na.omit(gath_df_img_mu)
 ggplot_map <- ggplot(data = data, aes(x= lon, y = lat)) +
@@ -72,25 +91,15 @@ ggplot_map <- ggplot(data = data, aes(x= lon, y = lat)) +
         strip.text = element_text(colour = '#666666', size=14, face = 'bold.italic'),
   )
 
-
-tbl_df_img_mu <- data.frame(t(table(gath_df_img_mu$variables, gath_df_img_mu$values)))
-tbl_df_img_mu$classes <- rep(c('Severe', 'Intermediate', 'Absent'),2)
-
 data <- tbl_df_img_mu
-ggplot_donut <- ggplot(data, aes(x = 2, y = Freq, fill = Var1)) +
+ggplot_donut <- ggplot(data, aes(x = 2, y = perc, fill = classes)) +
   geom_bar(stat = "identity") +
   coord_polar("y", start = 0) + 
-  # scale_fill_brewer(palette = "Dark2") +
-  scale_fill_manual(values = c("1" = "#D36C63",
-                               "2" = "#D7DF23",
-                               "3" = "#05733F"),
-                    labels = c('Severe',
-                               'Intermediate',
-                               'Absent')) +
-  # geom_text(aes(y = Freq, label = classes), col = "white", size = 5) +
+  scale_fill_manual(values = c("Severe" = "#D36C63", "Intermediate" = "#D7DF23", "Absent" = "#05733F"),
+                    labels = c('Sev', 'Int', 'Abs')) +
   theme_void() +
   xlim(.2,2.5) +
-  facet_wrap(Var2 ~ .)+
+  facet_wrap(variables ~ .)+
   theme(axis.text = element_blank(),
         axis.title = element_blank(),
         panel.grid.major.y = element_blank(),
@@ -102,13 +111,13 @@ ggplot_donut <- ggplot(data, aes(x = 2, y = Freq, fill = Var1)) +
         axis.line.x = element_blank(),
         legend.title = element_blank(),
         legend.text = element_text(colour = '#666666', size = 14, face = 'plain'),
-        legend.position = 'none',
+        legend.position = 'bottom',
         legend.direction = 'horizontal',
         plot.title = element_text(colour = '#000000', size=14, face = 'bold', hjust = 0.5),
         strip.background = element_blank(),
         strip.text = element_text(colour = '#666666', size=14, face = 'bold.italic'),
   )
-
+ggplot_donut
 
 ###
 #' save graph
@@ -120,11 +129,11 @@ ggsave(filename = 'pasture_quality_2010_2018.png',
        units = "cm",  
        bg = "white")
 
-ggsave(filename = 'pasture_quality_pie_2010_2018.png',
+ggsave(filename = 'graph/pasture_quality_pie_2010_2018.png',
        plot = ggplot_donut,
        dpi = 300, 
        width = 25,
-       height = 15, 
+       height = 20, 
        units = "cm",  
        bg = "white")
 
